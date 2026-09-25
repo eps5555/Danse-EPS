@@ -10,7 +10,7 @@
 const K='danse_spectateur_v1',A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const REP=['mouvements / parties du corps','énergie / tonalité','relations entre danseurs','formations','procédés de composition','regard / intention','espace / directions / niveaux'];const TON=['légère','lourde','grande','petite','rapide','lente','contrôlée','relâchée','saccadée','continue'];const SPH=['près','loin du corps','haut','moyen','bas','avant','arrière','droite','gauche'];const FORM=['ligne','diagonale','cercle','carré','V','duo / trio','amas','espacé','face-à-face','autre'];const PROC=['répétition','accumulation','canon','unisson','contrepoint','contraste','transposition','portés','polyphonie','inversion','lâcher-rattraper','cascade'];const AUTO=['1 idée claire','au moins 1 exemple précis','vocabulaire de danse','effet expliqué','lien au thème / intention','connecteurs','aucune appréciation sans preuve'];let data=null,code='';
 function db(){try{return JSON.parse(localStorage.getItem(K)||'{}')}catch(e){return {}}}function saveDb(d){localStorage.setItem(K,JSON.stringify(d))}function gen(){let d=db(),c='';do{c='';for(let i=0;i<8;i++)c+=A[Math.floor(Math.random()*A.length)]}while(d[c]);return c}function obs(){return{moment:'',faits:'',vocab:{rep:[],ton:[],sph:[],form:[],proc:[]},effet:''}}function blank(){return{meta:{spectacle:'',date:'',theme:'',duree:'',observateur:'',classe:'',titre:'',musique:'',prenom:'',nom:'',emailProf:''},observations:Array.from({length:4},obs),tri:{revient:'',marque:'',theme:''},prep:{intro:'',idee:'',preuve1:'',preuve2:'',effet:'',conclusion:''},paragraphe:'',auto:[]}}
 function home(){app.innerHTML=`<h1>FICHE SPECTATEUR & PARAGRAPHE</h1><p class="small">HTML autonome — sauvegarde sur cet appareil.</p><div class="grid2"><div class="card"><h2>Nouvelle fiche</h2><p>Un code personnel sera créé à la première sauvegarde.</p><button class="btn primary big" onclick="newF()">Créer</button></div><div class="card"><h2>Reprendre une fiche</h2><label>Code personnel</label><input id="c" type="text" maxlength="8" style="text-transform:uppercase"><button class="btn big" style="margin-top:10px" onclick="resume()">Reprendre</button><div id="msg" class="small"></div></div></div>`}function newF(){data=blank();code='';render()}function resume(){let c=(document.getElementById('c').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''),d=db();if(!d[c]){msg.textContent='Code introuvable sur cet appareil.';return}code=c;data=d[c];render()}function save(show=true){if(!code)code=gen();let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré — code : '+code;if(show){mcode.textContent=code;modal.classList.remove('hide')}}function autosave(){if(code){let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré automatiquement — '+code}}function closeModal(){modal.classList.add('hide')}
-function render(){let m=data.meta;app.innerHTML=`<div class="header"><div class="row"><div><b>FICHE SPECTATEUR</b><div id="st" class="status">${code?'Code : '+code:'Pas encore enregistrée'}</div></div><div><button class="btn" onclick="home()">Accueil</button> <button class="btn primary" onclick="save()">Enregistrer</button></div></div></div><div id="ed"></div>`;let h=`<div class="card"><div class="meta">${fld('Spectacle / groupe','meta.spectacle',m.spectacle)}${datef('Date','meta.date',m.date)}${fld('Thème annoncé','meta.theme',m.theme)}${fld('Durée','meta.duree',m.duree)}${fld('Observateur','meta.observateur',m.observateur)}${fld('Classe','meta.classe',m.classe)}${fld('Titre','meta.titre',m.titre)}${fld('Musique','meta.musique',m.musique)}</div></div><div class="section"><h2>PRENDRE DES NOTES SUR UNE CHORÉGRAPHIE</h2></div><div class="callout"><b>Étape 1 : relever les éléments importants.</b><br>Je note d'abord ce qui est observable (faits précis), puis seulement l'effet et le sens. Éviter « c'est bien / nul / beau ».</div>`;data.observations.forEach((o,i)=>h+=oh(o,i));h+=`<button class="btn" onclick="addObs()">+ Ajouter une observation</button><div class="section"><h2>2. Trier ses notes</h2></div><div class="grid3"><div class="card">${area('CE QUI REVIENT','tri.revient',data.tri.revient)}</div><div class="card">${area('CE QUI MARQUE / CHANGE','tri.marque',data.tri.marque)}</div><div class="card">${area('CE QUI SERT LE THÈME','tri.theme',data.tri.theme)}</div></div><div class="section"><h2>CONSTRUIRE UN PARAGRAPHE CRITIQUE</h2></div><div class="callout"><b>Étape 2 : exploiter les notes, justifier et rédiger.</b><br>Un paragraphe critique formule une idée, s'appuie sur des éléments précis de la chorégraphie et explique l'effet ou le sens produit.</div><div class="method">${mr(1,'IDÉE / POINT DE VUE','Analyser le choix du chorégraphe par rapport au thème annoncé.','La chorégraphie rend progressivement l’idée d’enfermement plus forte.')}${mr(2,'PREUVE PRÉCISE','Citer un moment visible : mouvement, formation, procédé, tonalité, espace…','Au milieu, les danseurs resserrent le cercle et répètent le même geste en canon.')}${mr(3,'ANALYSE / EFFET','Expliquer ce que ce choix produit sur le spectateur.','Le décalage donne une impression de propagation et le resserrement augmente la tension.')}${mr(4,'LIEN AU THÈME / À L’INTENTION','Montrer pourquoi cet exemple est pertinent pour la chorégraphie.','Cela renforce l’idée d’une pression qui gagne tout le groupe.')}${mr(5,'BILAN / NUANCE','Conclure l’idée ou nuancer avec une limite précise.','Le choix est lisible ; cependant un passage peut manquer de lien avec le thème ou créer une rupture.')}</div><div class="section"><h2>Je prépare mes blocs</h2></div><div class="card">${area('Mon introduction','prep.intro',data.prep.intro)}${area('Mon idée principale','prep.idee',data.prep.idee)}${area('La preuve n°1 (moment précis)','prep.preuve1',data.prep.preuve1)}${area('La preuve n°2 éventuelle','prep.preuve2',data.prep.preuve2)}${area("L'effet / le sens produit",'prep.effet',data.prep.effet)}${area('La conclusion ou la nuance','prep.conclusion',data.prep.conclusion)}</div><div class="section"><h2>Connecteurs et phrases utiles</h2></div><div class="card small" style="font-size:13px;line-height:1.6"><b>Pour introduire :</b> Nous avons assisté à/au… / Nous sommes allés voir…<br><b>Pour présenter :</b> Nous montrerons que le chorégraphe… / Nous défendrons l'idée que…<br><b>Pour argumenter :</b> En effet, on observe que… / C'est pour cela que…<br><b>Pour prouver :</b> par exemple… / notamment… / au début… / lors de la transition…<br><b>Pour analyser :</b> Ce choix produit… / crée une impression de… / attire le regard vers…<br><b>Pour relier au thème :</b> Ainsi cela renforce… / symbolise… / traduit… / fait évoluer…<br><b>Pour nuancer :</b> cependant… / néanmoins… / la limite est… / ce choix serait plus lisible si…</div><div class="section"><h2>4. JE RÉDIGE MON PARAGRAPHE</h2></div><div class="card"><textarea style="min-height:260px" oninput="setp('paragraphe',this.value)">${esc(data.paragraphe||'')}</textarea><label>AUTO-CHECK</label>${pills(AUTO,data.auto,'auto')}</div><div class="section"><h2>Envoyer le résultat</h2></div><div class="card"><div class="grid2">${fld('Prénom','meta.prenom',m.prenom)}${fld('Nom','meta.nom',m.nom)}</div><p class="small">La fiche est transformée en <b>PDF</b>. L'élève n'a pas besoin d'adresse mail. Le mail reçu par le professeur contient uniquement la pièce jointe PDF ; son objet est « Nom Prénom - fiche observateur danse ». Pour l'envoi direct, cette page doit être ouverte depuis une adresse web (pas depuis un fichier local <code>file://</code>).</p><div class="grid2"><button id="sendBtn" class="btn ok big" onclick="sendDirect(this)">Envoyer la fiche PDF au professeur</button><button class="btn big" onclick="downloadPdf()">Télécharger ma fiche en PDF</button></div><div id="sendStatus" class="sendbox" aria-live="polite"></div></div>`;ed.innerHTML=h}
+function render(){let m=data.meta;app.innerHTML=`<div class="header"><div class="row"><div><b>FICHE SPECTATEUR</b><div id="st" class="status">${code?'Code : '+code:'Pas encore enregistrée'}</div></div><div><button class="btn" onclick="home()">Accueil</button> <button class="btn primary" onclick="save()">Enregistrer</button></div></div></div><div id="ed"></div>`;let h=`<div class="card"><div class="meta">${fld('Spectacle / groupe','meta.spectacle',m.spectacle)}${datef('Date','meta.date',m.date)}${fld('Thème annoncé','meta.theme',m.theme)}${fld('Durée','meta.duree',m.duree)}${fld('Observateur','meta.observateur',m.observateur)}${fld('Classe','meta.classe',m.classe)}${fld('Titre','meta.titre',m.titre)}${fld('Musique','meta.musique',m.musique)}</div></div><div class="section"><h2>PRENDRE DES NOTES SUR UNE CHORÉGRAPHIE</h2></div><div class="callout"><b>Étape 1 : relever les éléments importants.</b><br>Je note d'abord ce qui est observable (faits précis), puis seulement l'effet et le sens. Éviter « c'est bien / nul / beau ».</div>`;data.observations.forEach((o,i)=>h+=oh(o,i));h+=`<button class="btn" onclick="addObs()">+ Ajouter une observation</button><div class="section"><h2>2. Trier ses notes</h2></div><div class="grid3"><div class="card">${area('CE QUI REVIENT','tri.revient',data.tri.revient)}</div><div class="card">${area('CE QUI MARQUE / CHANGE','tri.marque',data.tri.marque)}</div><div class="card">${area('CE QUI SERT LE THÈME','tri.theme',data.tri.theme)}</div></div><div class="section"><h2>CONSTRUIRE UN PARAGRAPHE CRITIQUE</h2></div><div class="callout"><b>Étape 2 : exploiter les notes, justifier et rédiger.</b><br>Un paragraphe critique formule une idée, s'appuie sur des éléments précis de la chorégraphie et explique l'effet ou le sens produit.</div><div class="method">${mr(1,'IDÉE / POINT DE VUE','Analyser le choix du chorégraphe par rapport au thème annoncé.','La chorégraphie rend progressivement l’idée d’enfermement plus forte.')}${mr(2,'PREUVE PRÉCISE','Citer un moment visible : mouvement, formation, procédé, tonalité, espace…','Au milieu, les danseurs resserrent le cercle et répètent le même geste en canon.')}${mr(3,'ANALYSE / EFFET','Expliquer ce que ce choix produit sur le spectateur.','Le décalage donne une impression de propagation et le resserrement augmente la tension.')}${mr(4,'LIEN AU THÈME / À L’INTENTION','Montrer pourquoi cet exemple est pertinent pour la chorégraphie.','Cela renforce l’idée d’une pression qui gagne tout le groupe.')}${mr(5,'BILAN / NUANCE','Conclure l’idée ou nuancer avec une limite précise.','Le choix est lisible ; cependant un passage peut manquer de lien avec le thème ou créer une rupture.')}</div><div class="section"><h2>Je prépare mes blocs</h2></div><div class="card">${area('Mon introduction','prep.intro',data.prep.intro)}${area('Mon idée principale','prep.idee',data.prep.idee)}${area('La preuve n°1 (moment précis)','prep.preuve1',data.prep.preuve1)}${area('La preuve n°2 éventuelle','prep.preuve2',data.prep.preuve2)}${area("L'effet / le sens produit",'prep.effet',data.prep.effet)}${area('La conclusion ou la nuance','prep.conclusion',data.prep.conclusion)}</div><div class="section"><h2>Connecteurs et phrases utiles</h2></div><div class="card small" style="font-size:13px;line-height:1.6"><b>Pour introduire :</b> Nous avons assisté à/au… / Nous sommes allés voir…<br><b>Pour présenter :</b> Nous montrerons que le chorégraphe… / Nous défendrons l'idée que…<br><b>Pour argumenter :</b> En effet, on observe que… / C'est pour cela que…<br><b>Pour prouver :</b> par exemple… / notamment… / au début… / lors de la transition…<br><b>Pour analyser :</b> Ce choix produit… / crée une impression de… / attire le regard vers…<br><b>Pour relier au thème :</b> Ainsi cela renforce… / symbolise… / traduit… / fait évoluer…<br><b>Pour nuancer :</b> cependant… / néanmoins… / la limite est… / ce choix serait plus lisible si…</div><div class="section"><h2>4. JE RÉDIGE MON PARAGRAPHE</h2></div><div class="card"><textarea style="min-height:260px" oninput="setp('paragraphe',this.value)">${esc(data.paragraphe||'')}</textarea><label>AUTO-CHECK</label>${pills(AUTO,data.auto,'auto')}</div><div class="section"><h2>Télécharger le résultat</h2></div><div class="card"><div class="grid2">${fld('Prénom','meta.prenom',m.prenom)}${fld('Nom','meta.nom',m.nom)}</div><p class="small">La fiche est transformée en <b>PDF</b> et téléchargée directement sur l'appareil. Ensuite, dépose ce fichier dans le <b>casier numérique Pronote</b> demandé par le professeur.</p><button class="btn ok big" onclick="downloadPdf()">Télécharger ma fiche en PDF</button><div id="sendStatus" class="sendbox" aria-live="polite"></div></div>`;ed.innerHTML=h}
 function oh(o,i){return `<details ${i===0?'open':''}><summary>Observation ${i+1}${o.moment?' — '+esc(o.moment).slice(0,55):''}</summary><div class="inner"><div class="grid2">${area('Moment — Quand ils / elles font…',`observations.${i}.moment`,o.moment)}${area('FAITS OBSERVABLES — je repère…',`observations.${i}.faits`,o.faits)}</div><div class="sub"><h4>Je repère</h4>${pills(REP,o.vocab.rep,`observations.${i}.vocab.rep`)}</div><div class="sub"><h4>Énergie / tonalité</h4>${pills(TON,o.vocab.ton,`observations.${i}.vocab.ton`)}</div><div class="sub"><h4>Espace / sphère</h4>${pills(SPH,o.vocab.sph,`observations.${i}.vocab.sph`)}</div><div class="sub"><h4>Formations</h4>${pills(FORM,o.vocab.form,`observations.${i}.vocab.form`)}</div><div class="sub"><h4>Procédés</h4>${pills(PROC,o.vocab.proc,`observations.${i}.vocab.proc`)}</div>${area('EFFET PRODUIT — ce que cela fait au spectateur',`observations.${i}.effet`,o.effet)}${data.observations.length>1?`<button class="btn danger" onclick="delObs(${i})">Supprimer cette observation</button>`:''}</div></details>`}function addObs(){data.observations.push(obs());render();autosave()}function delObs(i){if(confirm('Supprimer cette observation ?')){data.observations.splice(i,1);render();autosave()}}function mr(n,t,d,e){return `<div class="num">${n}</div><div class="txt"><b>${t}</b> — ${d}<br><i class="small">« ${e} »</i></div>`}
 function fld(l,p,v){return `<div><label>${l}</label><input type="text" value="${attr(v||'')}" oninput="setp('${p}',this.value)"></div>`}function datef(l,p,v){return `<div><label>${l}</label><input type="date" value="${attr(v||'')}" oninput="setp('${p}',this.value)"></div>`}function area(l,p,v){return `<div><label>${l}</label><textarea oninput="setp('${p}',this.value)">${esc(v||'')}</textarea></div>`}function pills(a,s,p){s=s||[];return `<div class="pills">${a.map(v=>`<label class="pill"><input type="checkbox" ${s.includes(v)?'checked':''} onchange="tog('${p}',${JSON.stringify(v)},this.checked)"><span>${esc(v)}</span></label>`).join('')}</div>`}function setp(p,v){let a=p.split('.'),r=data;for(let i=0;i<a.length-1;i++)r=r[a[i]];r[a[a.length-1]]=v;autosave()}function getp(p){return p.split('.').reduce((r,k)=>r[k],data)}function tog(p,v,c){let a=getp(p),i=a.indexOf(v);if(c&&i<0)a.push(v);if(!c&&i>=0)a.splice(i,1);autosave()}
 function report(){let m=data.meta,s=`FICHE SPECTATEUR — DANSE\nCode : ${code||'(non enregistré)'}\n\nÉlève : ${(m.prenom||'')} ${(m.nom||'')}\nObservateur : ${m.observateur||''}\nClasse : ${m.classe||''}\nSpectacle / groupe : ${m.spectacle||''}\nTitre : ${m.titre||''}\nThème : ${m.theme||''}\nMusique : ${m.musique||''}\n\nOBSERVATIONS\n`;data.observations.forEach((o,i)=>{s+=`\nObservation ${i+1}\nMoment : ${o.moment||''}\nFaits observables : ${o.faits||''}\nVocabulaire : ${Object.values(o.vocab).flat().join(', ')}\nEffet produit : ${o.effet||''}\n`});s+=`\nTRI DES NOTES\nCe qui revient : ${data.tri.revient||''}\nCe qui marque/change : ${data.tri.marque||''}\nCe qui sert le thème : ${data.tri.theme||''}\n\nPRÉPARATION\nIntroduction : ${data.prep.intro||''}\nIdée : ${data.prep.idee||''}\nPreuve 1 : ${data.prep.preuve1||''}\nPreuve 2 : ${data.prep.preuve2||''}\nEffet/sens : ${data.prep.effet||''}\nConclusion/nuance : ${data.prep.conclusion||''}\n\nPARAGRAPHE CRITIQUE\n${data.paragraphe||''}\n\nAUTO-CHECK : ${(data.auto||[]).join(' • ')}`;return s}function pdfEsc(v){return esc(v||'').replace(/\n/g,'<br>')}
@@ -70,97 +70,5 @@ async function downloadPdf(){
     if(status){status.className='sendbox ok';status.textContent='✓ PDF CRÉÉ';}
   }catch(e){if(status){status.className='sendbox err';status.textContent='Création du PDF impossible : '+e.message;}}
 }
-async function sendDirect(btn){
-  const m=data.meta||{};
-  if(!((m.prenom||m.observateur)&&m.classe)){
-    alert('Renseigne au minimum le prénom / observateur et la classe.');
-    return;
-  }
-
-  const status=document.getElementById('sendStatus');
-  const oldText=btn.textContent;
-  btn.disabled=true;
-  btn.textContent='Création du PDF…';
-  status.className='sendbox wait';
-  status.textContent='Création du PDF…';
-
-  try{
-    save(false);
-    const blob=await makePdfBlob();
-
-    const identite=(`${m.nom||''} ${m.prenom||''}`).trim() || m.observateur || 'Élève';
-    const safeName=identite.normalize('NFD')
-      .replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^a-zA-Z0-9_-]+/g,'_')
-      .replace(/^_+|_+$/g,'') || 'eleve';
-
-    // Identifiant FormSubmit fourni après activation de l'adresse du professeur.
-    // Il évite d'exposer l'adresse mail dans le HTML.
-    const formKey=['60d35e','be69d2f1e9','a7b8710','378d23def'].join('');
-
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action='https://formsubmit.co/'+formKey;
-    form.enctype='multipart/form-data';
-    form.style.display='none';
-
-    function hidden(name,value){
-      const input=document.createElement('input');
-      input.type='hidden';
-      input.name=name;
-      input.value=value;
-      form.appendChild(input);
-    }
-
-    hidden('_subject',`${identite} - fiche observateur danse`);
-    hidden('_captcha','false');
-    hidden('_next','https://eps5555.github.io/Danse-EPS/spectateur.html?sent=1');
-
-    // La fiche n'est PAS recopiée dans le corps du mail.
-    // Seul le PDF est ajouté en pièce jointe.
-    const fileInput=document.createElement('input');
-    fileInput.type='file';
-    fileInput.name='attachment';
-    fileInput.accept='application/pdf';
-
-    const dt=new DataTransfer();
-    dt.items.add(new File(
-      [blob],
-      `${safeName}_fiche_observateur_danse.pdf`,
-      {type:'application/pdf'}
-    ));
-    fileInput.files=dt.files;
-    form.appendChild(fileInput);
-
-    document.body.appendChild(form);
-
-    btn.textContent='Envoi du PDF…';
-    status.textContent='Envoi du PDF…';
-
-    // Soumission native multipart/form-data :
-    // c'est le mode prévu par FormSubmit pour une pièce jointe.
-    form.submit();
-
-  }catch(e){
-    status.className='sendbox err';
-    status.textContent='Envoi impossible : '+e.message;
-    btn.disabled=false;
-    btn.textContent=oldText;
-  }
-}
-
-function showSentConfirmation(){
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('sent')==='1'){
-    const box=document.createElement('div');
-    box.className='sendbox ok';
-    box.style.display='block';
-    box.style.margin='16px 0';
-    box.textContent='✓ FICHE PDF ENVOYÉE AU PROFESSEUR';
-    const root=document.getElementById('app');
-    root.prepend(box);
-    history.replaceState({},document.title,window.location.pathname);
-  }
-}
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function attr(v){return esc(v).replace(/`/g,'&#96;')}home();showSentConfirmation();
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function attr(v){return esc(v).replace(/`/g,'&#96;')}home();
 </script></body></html>
