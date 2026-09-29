@@ -36,7 +36,7 @@
 .pdf-par{border:1px solid #8f9eac;min-height:185px;padding:10px;font-size:10px;line-height:1.5;white-space:pre-wrap;margin-top:6px}
 .pdf-check{border:1px solid #9eacba;padding:7px 9px;font-size:9.3px;line-height:1.5;margin-top:7px}
 .pdf-muted{color:#667788}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head><body><div class="wrap"><div id="app"></div></div><div id="modal" class="modal hide"><div class="modalbox"><h2>Code personnel</h2><p>Conserve ce code pour reprendre la fiche sur <b>ce même appareil et ce même navigateur</b>.</p><div id="mcode" class="code"></div><button class="btn primary big" style="margin-top:12px" onclick="closeModal()">Continuer</button></div></div><script>
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script></head><body><div class="wrap"><div id="app"></div></div><div id="modal" class="modal hide"><div class="modalbox"><h2>Code personnel</h2><p>Conserve ce code pour reprendre la fiche sur <b>ce même appareil et ce même navigateur</b>.</p><div id="mcode" class="code"></div><button class="btn primary big" style="margin-top:12px" onclick="closeModal()">Continuer</button></div></div><script>
 const K='danse_spectateur_v1',A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const REP=['mouvements / parties du corps','énergie / tonalité','relations entre danseurs','formations','procédés de composition','regard / intention','espace / directions / niveaux'];const TON=['légère','lourde','grande','petite','rapide','lente','contrôlée','relâchée','saccadée','continue'];const SPH=['près','loin du corps','haut','moyen','bas','avant','arrière','droite','gauche'];const FORM=['ligne','diagonale','cercle','carré','V','duo / trio','amas','espacé','face-à-face','autre'];const PROC=['répétition','accumulation','canon','unisson','contrepoint','contraste','transposition','portés','polyphonie','inversion','lâcher-rattraper','cascade'];const AUTO=['1 idée claire','au moins 1 exemple précis','vocabulaire de danse','effet expliqué','lien au thème / intention','connecteurs','aucune appréciation sans preuve'];let data=null,code='';
 function db(){try{return JSON.parse(localStorage.getItem(K)||'{}')}catch(e){return {}}}function saveDb(d){localStorage.setItem(K,JSON.stringify(d))}function gen(){let d=db(),c='';do{c='';for(let i=0;i<8;i++)c+=A[Math.floor(Math.random()*A.length)]}while(d[c]);return c}function obs(){return{moment:'',faits:'',vocab:{rep:[],ton:[],sph:[],form:[],proc:[]},effet:'',sens:''}}function blank(){return{meta:{spectacle:'',date:'',theme:'',duree:'',observateur:'',classe:'',titre:'',musique:'',prenom:'',nom:'',emailProf:''},observations:Array.from({length:4},obs),tri:{revient:'',marque:'',theme:''},prep:{intro:'',idee:'',preuve1:'',preuve2:'',effet:'',conclusion:''},paragraphe:'',auto:[]}}
 function home(){app.innerHTML=`<h1>FICHE SPECTATEUR & PARAGRAPHE</h1><p class="small">HTML autonome — sauvegarde sur cet appareil.</p><div class="grid2"><div class="card"><h2>Nouvelle fiche</h2><p>Un code personnel sera créé à la première sauvegarde.</p><button class="btn primary big" onclick="newF()">Créer</button></div><div class="card"><h2>Reprendre une fiche</h2><label>Code personnel</label><input id="c" type="text" maxlength="8" style="text-transform:uppercase"><button class="btn big" style="margin-top:10px" onclick="resume()">Reprendre</button><div id="msg" class="small"></div></div></div>`}function newF(){data=blank();code='';render()}function resume(){let c=(document.getElementById('c').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''),d=db();if(!d[c]){msg.textContent='Code introuvable sur cet appareil.';return}code=c;data=d[c];render()}function save(show=true){if(!code)code=gen();let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré — code : '+code;if(show){mcode.textContent=code;modal.classList.remove('hide')}}function autosave(){if(code){let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré automatiquement — '+code}}function closeModal(){modal.classList.add('hide')}
@@ -177,21 +177,261 @@ function buildPdfReport(){
   return div;
 }
 async function makePdfBlob(){
-  if(typeof html2pdf==='undefined') throw new Error("Le module PDF n'a pas pu être chargé. Vérifie la connexion Internet.");
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    throw new Error("Le module PDF n'a pas pu être chargé. Vérifie la connexion Internet.");
+  }
   if(!code) save(false);
-  const node=buildPdfReport();
-  try{
-    const worker=html2pdf().set({
-      margin:0,
-      filename:`fiche_spectateur_${code||'sans_code'}.pdf`,
-      image:{type:'jpeg',quality:0.92},
-      html2canvas:{scale:1.7,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
-      jsPDF:{unit:'pt',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy']}
-    }).from(node).toPdf();
-    const pdf=await worker.get('pdf');
-    return pdf.output('blob');
-  } finally { node.remove(); }
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+  const m=data.meta||{};
+  const student=((m.prenom||'')+' '+(m.nom||'')).trim()||m.observateur||'';
+  const pageW=210, margin=10, innerW=190;
+
+  function txt(v){return String(v??'').replace(/\s+/g,' ').trim();}
+  function setFont(size=9,bold=false){
+    doc.setFont('helvetica',bold?'bold':'normal');
+    doc.setFontSize(size);
+    doc.setTextColor(23,33,43);
+  }
+  function fitLines(text,width,maxLines){
+    setFont(doc.getFontSize?doc.getFontSize():9,false);
+    let lines=doc.splitTextToSize(txt(text),Math.max(2,width));
+    if(!Array.isArray(lines)) lines=[String(lines||'')];
+    if(lines.length>maxLines){
+      lines=lines.slice(0,maxLines);
+      let last=lines[maxLines-1]||'';
+      if(last.length>3) last=last.slice(0,Math.max(1,last.length-3))+'...';
+      lines[maxLines-1]=last;
+    }
+    return lines;
+  }
+  function cell(x,y,w,h,label,value,labelW=0,fillLabel=true){
+    doc.setDrawColor(143,158,172);
+    doc.setLineWidth(.25);
+    doc.rect(x,y,w,h);
+    if(labelW>0){
+      if(fillLabel){
+        doc.setFillColor(241,245,249);
+        doc.rect(x,y,labelW,h,'F');
+        doc.rect(x,y,labelW,h);
+      }
+      setFont(7.5,true);
+      const ll=doc.splitTextToSize(label,labelW-3);
+      doc.text(ll,x+1.5,y+3.4);
+      setFont(8,false);
+      const lines=fitLines(value,w-labelW-3,Math.max(1,Math.floor((h-2)/3.7)));
+      doc.text(lines,x+labelW+1.5,y+3.5);
+    }else{
+      setFont(8,false);
+      const lines=fitLines(value,w-3,Math.max(1,Math.floor((h-2)/3.7)));
+      doc.text(lines,x+1.5,y+3.5);
+    }
+  }
+  function headerTitle(title,subtitle){
+    setFont(13,true);
+    doc.text(title,pageW/2,12,{align:'center'});
+    setFont(8.3,false);
+    doc.setTextColor(78,96,112);
+    doc.text(subtitle,pageW/2,18,{align:'center'});
+    doc.setTextColor(23,33,43);
+  }
+  function sectionTitle(text,y){
+    doc.setFillColor(237,244,251);
+    doc.rect(margin,y,innerW,7,'F');
+    doc.setFillColor(53,109,168);
+    doc.rect(margin,y,1.5,7,'F');
+    setFont(9.5,true);
+    doc.text(text,margin+3,y+4.8);
+  }
+  function box(x,y,w,h,title,value,fontSize=7.6){
+    doc.setDrawColor(143,158,172);
+    doc.rect(x,y,w,h);
+    setFont(7.5,true);
+    doc.text(title,x+2,y+4);
+    setFont(fontSize,false);
+    const lines=doc.splitTextToSize(txt(value),w-4);
+    const max=Math.max(1,Math.floor((h-7)/3.7));
+    let shown=lines.slice(0,max);
+    if(lines.length>max && shown.length){
+      let last=shown[shown.length-1];
+      shown[shown.length-1]=(last.length>3?last.slice(0,-3):last)+'...';
+    }
+    doc.text(shown,x+2,y+8);
+  }
+  function drawWrappedBox(x,y,w,h,title,value){
+    doc.setDrawColor(143,158,172);
+    doc.rect(x,y,w,h);
+    if(title){
+      setFont(8,true);
+      doc.text(title,x+2,y+4.2);
+    }
+    setFont(8,false);
+    const top=title?8:4;
+    const lines=doc.splitTextToSize(String(value||''),w-4);
+    const max=Math.max(1,Math.floor((h-top-2)/4));
+    const first=lines.slice(0,max);
+    const rest=lines.slice(max);
+    doc.text(first,x+2,y+top);
+    return rest;
+  }
+
+  // PAGE 1 — fiche d'observation
+  headerTitle("FICHE D'APPRENTISSAGE - PRENDRE DES NOTES SUR UNE CHOREGRAPHIE","Etape 1 : observer precisement avant de juger");
+
+  const metaY=22, rowH=7, half=95;
+  cell(margin,metaY,half,rowH,'Spectacle / groupe',m.spectacle||'',28);
+  cell(margin+half,metaY,half,rowH,'Date',m.date||'',18);
+  cell(margin,metaY+rowH,half,rowH,'Theme annonce',m.theme||'',28);
+  cell(margin+half,metaY+rowH,half,rowH,'Duree',m.duree||'',18);
+  cell(margin,metaY+rowH*2,half,rowH,'Observateur',student,28);
+  cell(margin+half,metaY+rowH*2,half,rowH,'Classe',m.classe||'',18);
+  cell(margin,metaY+rowH*3,half,rowH,'Titre',m.titre||'',28);
+  cell(margin+half,metaY+rowH*3,half,rowH,'Musique',m.musique||'',18);
+
+  box(margin,52,innerW,13,'REGLE',"Je note d'abord des faits observables, puis j'explique l'effet produit et le sens possible. J'evite les appreciations sans preuve.",7.2);
+  box(margin,68,innerW,16,'CE QUE JE PEUX OBSERVER',"Mouvements / parties du corps - espace / directions / niveaux - temps / rythme - energie / tonalite - relations entre danseurs - formations - procedes de composition - transitions - musique / silence - regard / intention.",6.8);
+
+  const tableY=88;
+  const cols=[23,51,44,36,36];
+  const heads=['MOMENT / REPERE','FAITS OBSERVABLES','OUTIL / VOCABULAIRE','EFFET PRODUIT','SENS / THEME'];
+  let x=margin;
+  doc.setFillColor(234,242,251);
+  doc.setDrawColor(143,158,172);
+  for(let i=0;i<cols.length;i++){
+    doc.rect(x,tableY,cols[i],11,'FD');
+    setFont(6.8,true);
+    const hLines=doc.splitTextToSize(heads[i],cols[i]-3);
+    doc.text(hLines,x+1.5,tableY+4);
+    x+=cols[i];
+  }
+
+  const observations=(data.observations||[]).slice(0,6);
+  while(observations.length<6) observations.push({moment:'',faits:'',vocab:{},effet:'',sens:''});
+  const rowHeight=20;
+  observations.forEach((o,r)=>{
+    const values=[
+      o.moment||'',
+      o.faits||'',
+      Object.values(o.vocab||{}).flat().filter(Boolean).join(', '),
+      o.effet||'',
+      o.sens||''
+    ];
+    let xx=margin;
+    values.forEach((v,i)=>{
+      doc.rect(xx,tableY+11+r*rowHeight,cols[i],rowHeight);
+      setFont(6.7,false);
+      const lines=doc.splitTextToSize(txt(v),cols[i]-3);
+      const max=5;
+      let shown=lines.slice(0,max);
+      if(lines.length>max && shown.length){
+        let last=shown[shown.length-1];
+        shown[shown.length-1]=(last.length>3?last.slice(0,-3):last)+'...';
+      }
+      doc.text(shown,xx+1.5,tableY+15+r*rowHeight);
+      xx+=cols[i];
+    });
+  });
+
+  sectionTitle('2. TRIER SES NOTES',222);
+  const bw=(innerW-6)/3;
+  box(margin,231,bw,31,'CE QUI REVIENT',data.tri&&data.tri.revient||'',7.1);
+  box(margin+bw+3,231,bw,31,'CE QUI MARQUE / CHANGE',data.tri&&data.tri.marque||'',7.1);
+  box(margin+(bw+3)*2,231,bw,31,'CE QUI SERT LE THEME',data.tri&&data.tri.theme||'',7.1);
+  box(margin,265,innerW,18,'MES 2 NOTES LES PLUS UTILES POUR ECRIRE',
+      [data.tri&&data.tri.marque||'',data.tri&&data.tri.theme||''].filter(Boolean).join(' - '),7.2);
+
+  // PAGE 2 — méthode + rédaction
+  doc.addPage();
+  headerTitle("FICHE METHODO - CONSTRUIRE UN PARAGRAPHE CRITIQUE","Etape 2 : exploiter les notes, justifier et rediger");
+  box(margin,23,innerW,15,'OBJECTIF',"Un paragraphe critique formule une idee, s'appuie sur un element precis de la choregraphie et explique l'effet ou le sens produit.",7.4);
+
+  const flowY=43, gap=3, flowW=(innerW-gap*4)/5;
+  ['IDEE','PREUVE','ANALYSE','SENS','BILAN'].forEach((t,i)=>{
+    const xx=margin+i*(flowW+gap);
+    doc.setDrawColor(143,158,172);
+    doc.setFillColor(248,250,252);
+    doc.rect(xx,flowY,flowW,11,'FD');
+    setFont(8,true);
+    doc.text(t,xx+flowW/2,flowY+7,{align:'center'});
+  });
+
+  const steps=[
+    ['1','IDEE / POINT DE VUE',"Formuler ce que l'on veut montrer sur les choix du choregraphe et leur relation au theme."],
+    ['2','PREUVE PRECISE',"Citer un moment visible : mouvement, formation, procede, tonalite, espace, relation entre danseurs..."],
+    ['3','ANALYSE / EFFET',"Expliquer ce que ce choix produit sur le spectateur."],
+    ['4','LIEN AU THEME / INTENTION',"Montrer pourquoi l'exemple choisi est pertinent pour la choregraphie."],
+    ['5','BILAN / NUANCE',"Conclure l'idee ou la nuancer avec une limite precise."]
+  ];
+  let sy=58;
+  steps.forEach(s=>{
+    doc.setDrawColor(143,158,172);
+    doc.setFillColor(79,121,170);
+    doc.rect(margin,sy,9,11,'F');
+    doc.rect(margin,sy,innerW,11);
+    setFont(9,true); doc.setTextColor(255,255,255); doc.text(s[0],margin+4.5,sy+7,{align:'center'});
+    doc.setTextColor(23,33,43);
+    doc.setFillColor(241,245,249); doc.rect(margin+9,sy,43,11,'F'); doc.rect(margin+9,sy,43,11);
+    setFont(6.8,true); doc.text(doc.splitTextToSize(s[1],39),margin+11,sy+4);
+    setFont(6.8,false); doc.text(doc.splitTextToSize(s[2],innerW-57),margin+55,sy+4);
+    sy+=11;
+  });
+
+  sectionTitle('JE PREPARE MON PARAGRAPHE',116);
+  const prep=[
+    ['Mon introduction',data.prep&&data.prep.intro||''],
+    ['Mon idee principale',data.prep&&data.prep.idee||''],
+    ['La preuve n°1',data.prep&&data.prep.preuve1||''],
+    ['La preuve n°2 eventuelle',data.prep&&data.prep.preuve2||''],
+    ["L'effet / le sens produit",data.prep&&data.prep.effet||''],
+    ['La conclusion ou la nuance',data.prep&&data.prep.conclusion||'']
+  ];
+  let py=125;
+  prep.forEach(p=>{
+    doc.setDrawColor(143,158,172);
+    doc.setFillColor(241,245,249);
+    doc.rect(margin,py,48,12,'F');
+    doc.rect(margin,py,innerW,12);
+    doc.rect(margin,py,48,12);
+    setFont(7.1,true); doc.text(doc.splitTextToSize(p[0],44),margin+2,py+4);
+    setFont(7.1,false);
+    let lines=doc.splitTextToSize(txt(p[1]),innerW-53).slice(0,2);
+    doc.text(lines,margin+51,py+4);
+    py+=12;
+  });
+
+  box(margin,200,innerW,19,'CONNECTEURS ET PHRASES UTILES',
+      "Presenter : Nous montrerons que... / Prouver : Par exemple... / Analyser : Ce choix produit... / Relier au theme : Cela renforce... / Nuancer : Cependant... / Neanmoins...",6.8);
+
+  sectionTitle('4. JE REDIGE MON PARAGRAPHE',222);
+  const paraText=String(data.paragraphe||'');
+  const paraLines=doc.splitTextToSize(paraText,innerW-4);
+  const maxPage2=13;
+  doc.setDrawColor(143,158,172);
+  doc.rect(margin,231,innerW,52);
+  setFont(8,false);
+  doc.text(paraLines.slice(0,maxPage2),margin+2,236);
+
+  const auto=(data.auto||[]);
+  if(auto.length){
+    setFont(6.8,false);
+    const autoText='AUTO-CHECK : '+AUTO.map(x=>(auto.includes(x)?'[x] ':'[ ] ')+x).join('   ');
+    doc.text(doc.splitTextToSize(autoText,innerW),margin,290);
+  }
+
+  // Si le paragraphe est plus long que la zone papier, on ajoute une page de continuation
+  // afin de ne jamais perdre ce que l'eleve a ecrit.
+  if(paraLines.length>maxPage2){
+    doc.addPage();
+    headerTitle('PARAGRAPHE CRITIQUE - SUITE','Texte complet de la fiche spectateur');
+    doc.setDrawColor(143,158,172);
+    doc.rect(margin,25,innerW,252);
+    setFont(9,false);
+    const rest=paraLines.slice(maxPage2);
+    doc.text(rest,margin+3,31,{maxWidth:innerW-6,lineHeightFactor:1.35});
+  }
+
+  return doc.output('blob');
 }
 async function downloadPdf(){
   const status=document.getElementById('sendStatus');
