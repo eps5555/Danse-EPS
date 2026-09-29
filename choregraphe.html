@@ -20,7 +20,7 @@
   .draw-editor-canvas-wrap{width:100%;height:auto;aspect-ratio:16/9}
   .draw-editor-help::after{content:" • Tourne le téléphone en paysage pour avoir une zone plus grande."}
 }
-</style></head><body><div class="wrap"><div id="app"></div></div><div id="modal" class="modal hide"><div class="modalbox"><h2>Code personnel</h2><p>Conserve ce code pour reprendre la fiche sur <b>ce même appareil et ce même navigateur</b>.</p><div id="mcode" class="code"></div><button class="btn primary big" style="margin-top:12px" onclick="closeModal()">Continuer</button></div></div><div id="drawEditor" class="draw-editor" aria-hidden="true">
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script></head><body><div class="wrap"><div id="app"></div></div><div id="modal" class="modal hide"><div class="modalbox"><h2>Code personnel</h2><p>Conserve ce code pour reprendre la fiche sur <b>ce même appareil et ce même navigateur</b>.</p><div id="mcode" class="code"></div><button class="btn primary big" style="margin-top:12px" onclick="closeModal()">Continuer</button></div></div><div id="drawEditor" class="draw-editor" aria-hidden="true">
   <div class="draw-editor-head">
     <div>
       <div id="drawEditorTitle" class="draw-editor-title">Dessin du mouvement</div>
@@ -52,7 +52,7 @@ function blank(){return{meta:{groupe:'',classe:'',theme:'',titre:''},phrases:Arr
 function home(){app.innerHTML=`<h1>FICHE CHORÉGRAPHE</h1><p class="small">HTML autonome — sauvegarde sur cet appareil.</p><div class="grid2"><div class="card"><h2>Nouvelle fiche</h2><p>Un code personnel sera créé à la première sauvegarde.</p><button class="btn primary big" onclick="newF()">Créer</button></div><div class="card"><h2>Reprendre une fiche</h2><label>Code personnel</label><input id="c" type="text" maxlength="8" style="text-transform:uppercase"><button class="btn big" style="margin-top:10px" onclick="resume()">Reprendre</button><div id="msg" class="small"></div></div></div>`}
 function newF(){data=blank();code='';render()}function resume(){let c=(document.getElementById('c').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''),d=db();if(!d[c]){msg.textContent='Code introuvable sur cet appareil.';return}code=c;data=d[c];render()}
 function save(show=true){if(!code)code=gen();let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré — code : '+code;if(show){mcode.textContent=code;modal.classList.remove('hide')}}function autosave(){if(code){let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré automatiquement — '+code}}function closeModal(){modal.classList.add('hide')}
-function render(){app.innerHTML=`<div class="header"><div class="row"><div><b>FICHE CHORÉGRAPHE</b><div id="st" class="status">${code?'Code : '+code:'Pas encore enregistrée'}</div></div><div><button class="btn" onclick="home()">Accueil</button> <button class="btn primary" onclick="save()">Enregistrer</button></div></div></div><div id="ed"></div>`;let m=data.meta,h=`<div class="card"><div class="meta">${fld('Groupe','meta.groupe',m.groupe)}${fld('Classe','meta.classe',m.classe)}${fld('Thème','meta.theme',m.theme)}${fld('Titre','meta.titre',m.titre)}</div></div><div class="section"><h2>Mes phrases chorégraphiques</h2><span class="small">1 case = 1 mouvement ou moment clé.</span></div>`;data.phrases.forEach((p,i)=>h+=phrase(p,i));h+=`<div class="section"><h2>Mon fil rouge</h2></div><div class="grid3"><div class="card"><h2>1. MON FIL ROUGE</h2>${area('Thème','fil.theme',data.fil.theme)}${area('Ce que je veux faire ressentir','fil.ressenti',data.fil.ressenti)}${area('Motif-signature / geste qui revient','fil.motif',data.fil.motif)}<div class="grid3">${area('Début','fil.debut',data.fil.debut)}${area('Bascule','fil.bascule',data.fil.bascule)}${area('Fin','fil.fin',data.fil.fin)}</div></div><div class="card"><h2>2. MES SYMBOLES / IMAGES</h2>${fld('Symbole / image 1','sym.s1',data.sym.s1)}${fld('Symbole / image 2','sym.s2',data.sym.s2)}${fld('Symbole / image 3','sym.s3',data.sym.s3)}<label>Comment les rendre visibles ?</label>${pills(['geste','formation','regard','niveau','espace','relation entre danseurs'],data.sym.vis,'sym.vis')}</div><div class="card"><h2>3. MES TONALITÉS</h2><label>Tonalités dominantes</label>${pills(['légère','lourde','grande','petite','rapide','lente','contrôlée','relâchée','saccadée','continue'],data.ton.dom,'ton.dom')}<label>Sphère du mouvement</label>${pills(['près','loin du corps','haut','moyen','bas','avant','arrière','droite','gauche'],data.ton.sphere,'ton.sphere')}<label>Contraste principal recherché</label>${pills(['fluide / saccadé','léger / lourd','continu / haché','direct / indirect','suspendu / relâché','explosif / retenu'],data.ton.contrastes,'ton.contrastes')}</div></div><div class="section"><h2>4. PROCÉDÉS DE COMPOSITION</h2></div><div class="procs">${PINFO.map(x=>`<label class="proc"><b><input type="checkbox" ${data.procedes.includes(x[0])?'checked':''} onchange="tog('procedes',${JSON.stringify(x[0])},this.checked)"> ${x[0]}</b><small>${x[1]}</small><small><i>Effet : ${x[2]}</i></small></label>`).join('')}</div><div class="section"><h2>5. FORMATIONS DE DANSEURS</h2></div><div class="formations">${forms('formations',data.formations)}</div><div class="section"><h2>6. VÉRIFICATION AVANT DE PRÉSENTER</h2></div><div class="card">${pills(['thème lisible','motif-signature identifiable','formations variées','espace utilisé','niveaux variés','procédés visibles','transitions nettes','début clair','fin claire','aucun temps mort','sécurité / placements maîtrisés'],data.verif,'verif')}<div class="grid2">${fld('Notre choix le plus important','choix',data.choix)}${fld('Parce que','pourquoi',data.pourquoi)}</div></div>`;ed.innerHTML=h;setTimeout(initCanvas,0)}
+function render(){app.innerHTML=`<div class="header"><div class="row"><div><b>FICHE CHORÉGRAPHE</b><div id="st" class="status">${code?'Code : '+code:'Pas encore enregistrée'}</div></div><div><button class="btn" onclick="home()">Accueil</button> <button class="btn primary" onclick="save()">Enregistrer</button></div></div></div><div id="ed"></div>`;let m=data.meta,h=`<div class="card"><div class="meta">${fld('Groupe','meta.groupe',m.groupe)}${fld('Classe','meta.classe',m.classe)}${fld('Thème','meta.theme',m.theme)}${fld('Titre','meta.titre',m.titre)}</div></div><div class="section"><h2>Mes phrases chorégraphiques</h2><span class="small">1 case = 1 mouvement ou moment clé.</span></div>`;data.phrases.forEach((p,i)=>h+=phrase(p,i));h+=`<div class="section"><h2>Mon fil rouge</h2></div><div class="grid3"><div class="card"><h2>1. MON FIL ROUGE</h2>${area('Thème','fil.theme',data.fil.theme)}${area('Ce que je veux faire ressentir','fil.ressenti',data.fil.ressenti)}${area('Motif-signature / geste qui revient','fil.motif',data.fil.motif)}<div class="grid3">${area('Début','fil.debut',data.fil.debut)}${area('Bascule','fil.bascule',data.fil.bascule)}${area('Fin','fil.fin',data.fil.fin)}</div></div><div class="card"><h2>2. MES SYMBOLES / IMAGES</h2>${fld('Symbole / image 1','sym.s1',data.sym.s1)}${fld('Symbole / image 2','sym.s2',data.sym.s2)}${fld('Symbole / image 3','sym.s3',data.sym.s3)}<label>Comment les rendre visibles ?</label>${pills(['geste','formation','regard','niveau','espace','relation entre danseurs'],data.sym.vis,'sym.vis')}</div><div class="card"><h2>3. MES TONALITÉS</h2><label>Tonalités dominantes</label>${pills(['légère','lourde','grande','petite','rapide','lente','contrôlée','relâchée','saccadée','continue'],data.ton.dom,'ton.dom')}<label>Sphère du mouvement</label>${pills(['près','loin du corps','haut','moyen','bas','avant','arrière','droite','gauche'],data.ton.sphere,'ton.sphere')}<label>Contraste principal recherché</label>${pills(['fluide / saccadé','léger / lourd','continu / haché','direct / indirect','suspendu / relâché','explosif / retenu'],data.ton.contrastes,'ton.contrastes')}</div></div><div class="section"><h2>4. PROCÉDÉS DE COMPOSITION</h2></div><div class="procs">${PINFO.map(x=>`<label class="proc"><b><input type="checkbox" ${data.procedes.includes(x[0])?'checked':''} onchange="tog('procedes',${JSON.stringify(x[0])},this.checked)"> ${x[0]}</b><small>${x[1]}</small><small><i>Effet : ${x[2]}</i></small></label>`).join('')}</div><div class="section"><h2>5. FORMATIONS DE DANSEURS</h2></div><div class="formations">${forms('formations',data.formations)}</div><div class="section"><h2>6. VÉRIFICATION AVANT DE PRÉSENTER</h2></div><div class="card">${pills(['thème lisible','motif-signature identifiable','formations variées','espace utilisé','niveaux variés','procédés visibles','transitions nettes','début clair','fin claire','aucun temps mort','sécurité / placements maîtrisés'],data.verif,'verif')}<div class="grid2">${fld('Notre choix le plus important','choix',data.choix)}${fld('Parce que','pourquoi',data.pourquoi)}</div></div><div class="section"><h2>Télécharger la fiche</h2></div><div class="card"><p class="small">Le PDF reprend les informations, les dessins et les choix remplis dans cette fiche. Il peut ensuite être conservé ou déposé dans Pronote.</p><button class="btn ok big" onclick="downloadChorePdf()">Télécharger ma fiche chorégraphe en PDF</button><div id="pdfStatus" class="status" style="margin-top:10px"></div></div>`;ed.innerHTML=h;setTimeout(initCanvas,0)}
 function phrase(p,i){return `<details ${i===0?'open':''} ontoggle="if(this.open)setTimeout(initCanvas,0)"><summary>PHRASE ${i+1}${p.intention?' — '+esc(p.intention).slice(0,60):''}</summary><div class="inner">${fld('Idée / intention',`phrases.${i}.intention`,p.intention)}<div class="moves">${p.mouvements.map((m,j)=>`<div class="move"><div class="n">MOUVEMENT ${j+1}</div><button type="button" class="draw-preview" onclick="openDrawEditor(${i},${j})" aria-label="Ouvrir la zone de dessin du mouvement ${j+1} en plein écran"><canvas width="320" height="180" data-c="${i}-${j}"></canvas><span class="draw-preview-hint">Toucher pour dessiner en grand</span></button><textarea placeholder="Ou noter très brièvement…" oninput="setp('phrases.${i}.mouvements.${j}.note',this.value)">${esc(m.note||'')}</textarea></div>`).join('')}</div><div class="sub"><h4>TONALITÉ</h4>${pills(TON,p.tonalites,`phrases.${i}.tonalites`)}</div><div class="sub"><h4>PROCÉDÉS</h4>${pills(PROC,p.procedes,`phrases.${i}.procedes`)}</div><div class="sub"><h4>CORPS / SPHÈRE</h4>${pills(CORPS,p.corps,`phrases.${i}.corps`)}</div><div class="sub"><h4>FORMATIONS (n°)</h4><div class="formations">${forms(`phrases.${i}.formations`,p.formations)}</div></div></div></details>`}
 function fld(l,p,v){return `<div><label>${l}</label><input type="text" value="${attr(v||'')}" oninput="setp('${p}',this.value)"></div>`}function area(l,p,v){return `<div><label>${l}</label><textarea oninput="setp('${p}',this.value)">${esc(v||'')}</textarea></div>`}function pills(a,s,p){s=s||[];return `<div class="pills">${a.map(v=>`<label class="pill"><input type="checkbox" ${s.includes(v)?'checked':''} onchange="tog('${p}',${JSON.stringify(v)},this.checked)"><span>${esc(v)}</span></label>`).join('')}</div>`}function forms(p,o){o=o||{};return FORM.map(f=>{let e=o[f]||{used:false,order:''};return `<div class="form"><div class="formline"><input type="checkbox" ${e.used?'checked':''} onchange="sf('${p}',${JSON.stringify(f)},'used',this.checked)"><b>${esc(f)}</b><input type="number" min="1" value="${attr(e.order||'')}" placeholder="n°" oninput="sf('${p}',${JSON.stringify(f)},'order',this.value)"></div><div class="diag">${FD[f]}</div></div>`}).join('')}
 function setp(p,v){let a=p.split('.'),r=data;for(let i=0;i<a.length-1;i++)r=r[a[i]];r[a[a.length-1]]=v;autosave()}function getp(p){return p.split('.').reduce((r,k)=>r[k],data)}function tog(p,v,c){let a=getp(p),i=a.indexOf(v);if(c&&i<0)a.push(v);if(!c&&i>=0)a.splice(i,1);autosave()}function sf(p,n,k,v){let o=getp(p);if(!o[n])o[n]={used:false,order:''};o[n][k]=v;autosave()}
@@ -193,5 +193,164 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape' && drawEdit) cancelDrawEditor();
 });
 
+
+function pdfSafe(v){
+  return String(v==null?'':v)
+    .replace(/[“”]/g,'"').replace(/[‘’]/g,"'")
+    .replace(/[–—]/g,'-').replace(/…/g,'...')
+    .replace(/\s+/g,' ').trim();
+}
+function pdfFormations(obj){
+  obj=obj||{};
+  return Object.entries(obj).filter(function(e){return e[1]&&e[1].used;})
+    .sort(function(a,b){return (Number(a[1].order)||999)-(Number(b[1].order)||999);})
+    .map(function(e){return (e[1].order?String(e[1].order)+'. ':'')+e[0];})
+    .join(' - ');
+}
+function pdfStrokes(doc,strokes,x,y,w,h){
+  const pad=1.2;
+  doc.setDrawColor(23,33,43); doc.setLineWidth(.45);
+  (strokes||[]).forEach(function(st){
+    if(!st||st.length<2)return;
+    for(let i=1;i<st.length;i++){
+      const a=st[i-1],b=st[i];
+      doc.line(x+pad+a[0]*(w-pad*2),y+pad+a[1]*(h-pad*2),x+pad+b[0]*(w-pad*2),y+pad+b[1]*(h-pad*2));
+    }
+  });
+}
+async function makeChorePdfBlob(){
+  if(!window.jspdf||!window.jspdf.jsPDF)throw new Error("Le module PDF n'a pas pu être chargé.");
+  if(!code)save(false);
+
+  const jsPDF=window.jspdf.jsPDF;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+  const m=data.meta||{}, W=210, M=10, IW=190;
+
+  function font(s,b){doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(s);doc.setTextColor(23,33,43);}
+  function split(t,w,s){font(s||7,false);return doc.splitTextToSize(pdfSafe(t),Math.max(3,w));}
+  function title(t,sub){
+    font(13,true);doc.text(t,W/2,11,{align:'center'});
+    if(sub){font(8,false);doc.setTextColor(85,100,115);doc.text(pdfSafe(sub),W/2,16,{align:'center'});doc.setTextColor(23,33,43);}
+  }
+  function sec(t,y){
+    doc.setFillColor(237,244,251);doc.rect(M,y,IW,7,'F');
+    doc.setFillColor(53,109,168);doc.rect(M,y,1.6,7,'F');
+    font(9,true);doc.text(t,M+3,y+4.8);
+  }
+  function box(x,y,w,h,l,v){
+    doc.setDrawColor(143,158,172);doc.setLineWidth(.25);doc.rect(x,y,w,h);
+    font(7,true);doc.text(l,x+2,y+4);
+    font(7,false);
+    let ls=split(v,w-4,7),max=Math.max(1,Math.floor((h-8)/3.5));
+    ls=ls.slice(0,max);
+    doc.text(ls,x+2,y+8);
+  }
+  function meta(y){
+    const H=7,Q=95;
+    const rows=[['Groupe',m.groupe||'','Classe',m.classe||''],['Thème',m.theme||'','Titre',m.titre||'']];
+    rows.forEach(function(r,i){
+      const yy=y+i*H;
+      doc.setDrawColor(143,158,172);doc.rect(M,yy,Q,H);doc.rect(M+Q,yy,Q,H);
+      doc.setFillColor(241,245,249);doc.rect(M,yy,20,H,'F');doc.rect(M+Q,yy,20,H,'F');
+      doc.rect(M,yy,20,H);doc.rect(M+Q,yy,20,H);
+      font(7,true);doc.text(r[0],M+1.5,yy+4.5);doc.text(r[2],M+Q+1.5,yy+4.5);
+      font(7,false);doc.text(split(r[1],Q-24,7).slice(0,1),M+22,yy+4.5);doc.text(split(r[3],Q-24,7).slice(0,1),M+Q+22,yy+4.5);
+    });
+  }
+  function list(a){return (a||[]).join(' - ');}
+
+  // Page de synthèse.
+  title('FICHE CHORÉGRAPHE - DANSE','Synthèse de la composition');
+  meta(21);
+  sec('1. MON FIL ROUGE',40);
+  box(M,49,IW,16,'Thème',data.fil&&data.fil.theme||'');
+  box(M,67,IW,16,'Ce que je veux faire ressentir',data.fil&&data.fil.ressenti||'');
+  box(M,85,IW,16,'Motif-signature / geste qui revient',data.fil&&data.fil.motif||'');
+  const BW=(IW-4)/3;
+  box(M,103,BW,24,'Début',data.fil&&data.fil.debut||'');
+  box(M+BW+2,103,BW,24,'Bascule',data.fil&&data.fil.bascule||'');
+  box(M+(BW+2)*2,103,BW,24,'Fin',data.fil&&data.fil.fin||'');
+  sec('2. MES SYMBOLES / IMAGES',132);
+  box(M,141,BW,21,'Symbole / image 1',data.sym&&data.sym.s1||'');
+  box(M+BW+2,141,BW,21,'Symbole / image 2',data.sym&&data.sym.s2||'');
+  box(M+(BW+2)*2,141,BW,21,'Symbole / image 3',data.sym&&data.sym.s3||'');
+  box(M,164,IW,16,'Comment les rendre visibles ?',list(data.sym&&data.sym.vis));
+  sec('3. MES TONALITÉS',184);
+  box(M,193,IW,16,'Tonalités dominantes',list(data.ton&&data.ton.dom));
+  box(M,211,IW,16,'Sphère du mouvement',list(data.ton&&data.ton.sphere));
+  box(M,229,IW,16,'Contraste principal recherché',list(data.ton&&data.ton.contrastes));
+  box(M,249,IW,16,'Procédés retenus',list(data.procedes));
+  box(M,267,IW,16,'Formations principales',pdfFormations(data.formations));
+
+  // Une page par phrase : 8 dessins + notes + choix.
+  (data.phrases||[]).forEach(function(p,pi){
+    doc.addPage();
+    title('FICHE CHORÉGRAPHE - PHRASE '+(pi+1),m.titre||'');
+    meta(20);
+    box(M,38,IW,15,'Idée / intention',p.intention||'');
+    sec('LES 8 MOUVEMENTS / MOMENTS CLÉS',56);
+
+    const GAP=2,CW=(IW-GAP*3)/4,CH=66,TOP=65;
+    (p.mouvements||[]).slice(0,8).forEach(function(mv,mi){
+      const col=mi%4,row=Math.floor(mi/4),x=M+col*(CW+GAP),y=TOP+row*(CH+3);
+      doc.setDrawColor(143,158,172);doc.rect(x,y,CW,CH);
+      font(7,true);doc.text('MOUVEMENT '+(mi+1),x+2,y+4);
+      const dy=y+6,dh=26;
+      doc.setDrawColor(170,184,197);doc.rect(x+1.5,dy,CW-3,dh);
+      pdfStrokes(doc,mv.strokes||[],x+1.5,dy,CW-3,dh);
+      font(6.7,false);
+      doc.text(split(mv.note||'',CW-4,6.7).slice(0,7),x+2,dy+dh+4);
+    });
+
+    const sy=204,SG=2,SW=(IW-SG*2)/3;
+    box(M,sy,SW,24,'TONALITÉ',list(p.tonalites));
+    box(M+SW+SG,sy,SW,24,'PROCÉDÉS',list(p.procedes));
+    box(M+(SW+SG)*2,sy,SW,24,'CORPS / SPHÈRE',list(p.corps));
+    box(M,231,IW,25,'FORMATIONS (ordre)',pdfFormations(p.formations));
+    box(M,260,IW,25,'Lien avec le fil rouge / thème',[data.fil&&data.fil.theme||'',data.fil&&data.fil.motif||''].filter(Boolean).join(' - '));
+  });
+
+  // Page finale de vérification.
+  doc.addPage();
+  title('FICHE CHORÉGRAPHE - VÉRIFICATION','Choix finaux avant de présenter');
+  meta(21);
+  sec('4. PROCÉDÉS DE COMPOSITION',40);
+  const pc=new Set(data.procedes||[]);
+  let py=49;
+  PINFO.forEach(function(p){
+    font(7,true);doc.text((pc.has(p[0])?'[x] ':'[ ] ')+p[0],M,py);
+    font(6.6,false);doc.text(split(p[1]+' - Effet : '+p[2],145,6.6),M+43,py);
+    py+=8;
+  });
+
+  sec('5. FORMATIONS DE DANSEURS',151);
+  box(M,160,IW,28,'Formations choisies et ordre',pdfFormations(data.formations));
+
+  sec('6. VÉRIFICATION AVANT DE PRÉSENTER',192);
+  const checks=['thème lisible','motif-signature identifiable','formations variées','espace utilisé','niveaux variés','procédés visibles','transitions nettes','début clair','fin claire','aucun temps mort','sécurité / placements maîtrisés'];
+  const vc=new Set(data.verif||[]);
+  checks.forEach(function(v,i){
+    const x=M+(i%2)*95,y=202+Math.floor(i/2)*8;
+    font(7,false);doc.text((vc.has(v)?'[x] ':'[ ] ')+v,x,y);
+  });
+  box(M,252,IW,15,'Notre choix le plus important',data.choix||'');
+  box(M,269,IW,15,'Parce que',data.pourquoi||'');
+
+  return doc.output('blob');
+}
+async function downloadChorePdf(){
+  const s=document.getElementById('pdfStatus');
+  if(s)s.textContent='Création du PDF…';
+  try{
+    const blob=await makeChorePdfBlob(),a=document.createElement('a'),m=data.meta||{};
+    a.href=URL.createObjectURL(blob);
+    const base=(m.groupe||m.classe||m.titre||'fiche_choregraphe').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'fiche_choregraphe';
+    a.download=base+'_fiche_choregraphe_danse.pdf';
+    a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+    if(s)s.textContent='✓ PDF CRÉÉ';
+  }catch(e){
+    if(s)s.textContent='Création du PDF impossible : '+e.message;
+  }
+}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function attr(v){return esc(v).replace(/`/g,'&#96;')}home();
 </script></body></html>
