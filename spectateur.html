@@ -186,7 +186,7 @@ async function showSavedSheets(){
   if(!arr.length){host.innerHTML='<span class="small">Aucune fiche enregistrée sur cet appareil.</span>';return;}
   host.innerHTML=arr.map(function(x){
     const d=x.updated?new Date(x.updated).toLocaleString('fr-FR'):'';
-    return '<button class="btn" style="width:100%;text-align:left;margin-top:7px" onclick="resumeCode(\\''+x.code+'\\')"><b>'+esc(x.label||'Fiche')+'</b><br><span class="small">Code '+x.code+(d?' — '+d:'')+'</span></button>';
+    return `<button class="btn" style="width:100%;text-align:left;margin-top:7px" onclick="resumeCode('${x.code}')"><b>${esc(x.label||'Fiche')}</b><br><span class="small">Code ${x.code}${d?' — '+d:''}</span></button>`;
   }).join('');
 }
 async function resumeCode(c){
