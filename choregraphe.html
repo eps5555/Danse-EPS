@@ -47,11 +47,180 @@ const FORM=['ligne','diagonale','cercle','carré / rectangle','V','duo / trio','
 const FD={'ligne':'● ● ● ●','diagonale':'●\\n  ●\\n    ●','cercle':' ● ●\\n●   ●\\n ●','carré / rectangle':'●   ●\\n●   ●','V':'●     ●\\n  ● ●\\n   ●','duo / trio':'●● / ●●●','amas / resserré':' ●●●\\n  ●●','quinconce':'●   ●\\n  ●   ●','face-à-face':'● →   ← ●','dos-à-dos':'← ●   ● →','1 danseur isolé':'●      ●●●','autre':'…'};
 const PINFO=[['Répétition','Reprendre le même motif','Insister, obsession, repère'],['Accumulation','Ajouter un élément à chaque reprise','Montée en puissance'],['Canon','Même mouvement décalé dans le temps','Propagation, poursuite'],['Unisson','Tous ensemble','Unité, norme, force'],['Contrepoint','Actions différentes en même temps','Conflit, double lecture'],['Contraste','Opposer tonalités / espaces / rythmes','Choc, bascule'],['Transposition','Reprendre une idée ailleurs','Transformation'],['Cascade','Succession rapide avec décalage','Effet de hola / succession'],['Inversion','Refaire en arrière : magnétoscope','Renversement'],['Polyphonie','Chaque danseur réalise une phrase différente','Cacophonie gestuelle structurée'],['Portés / Contrepoids','Mettre tout ou partie du poids sur un autre danseur','Relation de poids / appui'],['Lâcher-Rattraper','Quitter puis récupérer la séquence là où elle se trouve','Rupture puis retour']];
 let data=null,code='',canv={};
-function db(){try{return JSON.parse(localStorage.getItem(K)||'{}')}catch(e){return {}}}function saveDb(d){localStorage.setItem(K,JSON.stringify(d))}function gen(){let d=db(),c='';do{c='';for(let i=0;i<8;i++)c+=A[Math.floor(Math.random()*A.length)]}while(d[c]);return c}
+function db(){try{return JSON.parse(localStorage.getItem(K)||'{}')}catch(e){return {}}}function saveDb(d){localStorage.setItem(K,JSON.stringify(d))}function gen(){let d=db(),c='';do{c='';for(let i=0;i<8;i++)c+=A[Math.floor(Math.random()*A.length)]}while(d[c]||localStorage.getItem(SHEET_PREFIX+c));return c}
 function blank(){return{meta:{groupe:'',classe:'',theme:'',titre:''},phrases:Array.from({length:8},()=>({intention:'',mouvements:Array.from({length:8},()=>({note:'',strokes:[]})),tonalites:[],procedes:[],corps:[],formations:{}})),fil:{theme:'',ressenti:'',motif:'',debut:'',bascule:'',fin:''},sym:{s1:'',s2:'',s3:'',vis:[]},ton:{dom:[],sphere:[],contrastes:[]},procedes:[],formations:{},verif:[],choix:'',pourquoi:''}}
-function home(){app.innerHTML=`<h1>FICHE CHORÉGRAPHE</h1><p class="small">HTML autonome — sauvegarde sur cet appareil.</p><div class="grid2"><div class="card"><h2>Nouvelle fiche</h2><p>Un code personnel sera créé à la première sauvegarde.</p><button class="btn primary big" onclick="newF()">Créer</button></div><div class="card"><h2>Reprendre une fiche</h2><label>Code personnel</label><input id="c" type="text" maxlength="8" style="text-transform:uppercase"><button class="btn big" style="margin-top:10px" onclick="resume()">Reprendre</button><div id="msg" class="small"></div></div></div>`}
-function newF(){data=blank();code='';render()}function resume(){let c=(document.getElementById('c').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''),d=db();if(!d[c]){msg.textContent='Code introuvable sur cet appareil.';return}code=c;data=d[c];render()}
-function save(show=true){if(!code)code=gen();let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré — code : '+code;if(show){mcode.textContent=code;modal.classList.remove('hide')}}function autosave(){if(code){let d=db();d[code]=data;saveDb(d);st.textContent='Enregistré automatiquement — '+code}}function closeModal(){modal.classList.add('hide')}
+const SHEET_PREFIX=K+'_sheet_';
+const INDEX_KEY=K+'_index_v2';
+const IDB_NAME=K+'_backup_v2';
+const IDB_STORE='sheets';
+let idbTimer=null;
+
+function cloneValue(v){return JSON.parse(JSON.stringify(v));}
+function mergeDefaults(base,saved){
+  if(Array.isArray(base)){
+    if(!Array.isArray(saved))return cloneValue(base);
+    if(base.length && base[0] && typeof base[0]==='object' && !Array.isArray(base[0])){
+      const out=saved.map(function(v,i){return mergeDefaults(base[i]||base[0],v);});
+      for(let i=out.length;i<base.length;i++)out.push(cloneValue(base[i]));
+      return out;
+    }
+    return saved.slice();
+  }
+  if(base && typeof base==='object'){
+    const out={};
+    const src=(saved && typeof saved==='object')?saved:{};
+    Object.keys(base).forEach(function(k){out[k]=mergeDefaults(base[k],src[k]);});
+    Object.keys(src).forEach(function(k){if(!(k in out))out[k]=src[k];});
+    return out;
+  }
+  return saved===undefined?base:saved;
+}
+function sheetKey(c){return SHEET_PREFIX+c;}
+function readSheetLocal(c){
+  try{
+    const direct=localStorage.getItem(sheetKey(c));
+    if(direct)return JSON.parse(direct);
+  }catch(e){}
+  try{
+    const legacy=db();
+    if(legacy && legacy[c])return legacy[c];
+  }catch(e){}
+  return null;
+}
+function writeIndex(c,d){
+  try{
+    let arr=JSON.parse(localStorage.getItem(INDEX_KEY)||'[]');
+    arr=Array.isArray(arr)?arr.filter(function(x){return x&&x.code!==c;}):[];
+    const meta=d&&d.meta?d.meta:{};
+    const label=(meta.groupe||meta.classe||meta.titre||'Fiche chorégraphe');
+    arr.unshift({code:c,label:String(label),updated:Date.now()});
+    localStorage.setItem(INDEX_KEY,JSON.stringify(arr.slice(0,20)));
+  }catch(e){}
+}
+function openBackupDb(){
+  return new Promise(function(resolve,reject){
+    if(!window.indexedDB){reject(new Error('IndexedDB indisponible'));return;}
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){
+      const db=req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE,{keyPath:'code'});
+    };
+    req.onsuccess=function(){resolve(req.result);};
+    req.onerror=function(){reject(req.error||new Error('IndexedDB indisponible'));};
+  });
+}
+async function idbPut(c,d){
+  const dbi=await openBackupDb();
+  return new Promise(function(resolve,reject){
+    const tx=dbi.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put({code:c,data:cloneValue(d),updated:Date.now()});
+    tx.oncomplete=function(){dbi.close();resolve(true);};
+    tx.onerror=function(){const e=tx.error;dbi.close();reject(e);};
+  });
+}
+async function idbGet(c){
+  try{
+    const dbi=await openBackupDb();
+    return await new Promise(function(resolve){
+      const tx=dbi.transaction(IDB_STORE,'readonly');
+      const req=tx.objectStore(IDB_STORE).get(c);
+      req.onsuccess=function(){const v=req.result;dbi.close();resolve(v&&v.data?v.data:null);};
+      req.onerror=function(){dbi.close();resolve(null);};
+    });
+  }catch(e){return null;}
+}
+async function idbList(){
+  try{
+    const dbi=await openBackupDb();
+    return await new Promise(function(resolve){
+      const tx=dbi.transaction(IDB_STORE,'readonly');
+      const req=tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess=function(){const v=req.result||[];dbi.close();resolve(v);};
+      req.onerror=function(){dbi.close();resolve([]);};
+    });
+  }catch(e){return [];}
+}
+function localPersist(c,d){
+  let ok=false;
+  try{
+    localStorage.setItem(sheetKey(c),JSON.stringify(d));
+    localStorage.setItem(K+'_last_code',c);
+    writeIndex(c,d);
+    ok=true;
+  }catch(e){
+    console.warn('Sauvegarde locale principale impossible',e);
+  }
+  return ok;
+}
+function persistNow(){
+  if(!data)return false;
+  if(!code)code=gen();
+  const snap=cloneValue(data);
+  const localOk=localPersist(code,snap);
+  clearTimeout(idbTimer);
+  idbTimer=setTimeout(function(){idbPut(code,snap).catch(function(e){console.warn('Copie IndexedDB impossible',e);});},120);
+  const status=document.getElementById('st');
+  if(status)status.textContent=(localOk?'Enregistré automatiquement':'Sauvegarde de secours active')+' — '+code;
+  return localOk;
+}
+async function loadSheet(c){
+  const local=readSheetLocal(c);
+  if(local)return local;
+  const backup=await idbGet(c);
+  if(backup){
+    localPersist(c,backup);
+    return backup;
+  }
+  return null;
+}
+async function savedSheetIndex(){
+  const map=new Map();
+  try{
+    const arr=JSON.parse(localStorage.getItem(INDEX_KEY)||'[]');
+    if(Array.isArray(arr))arr.forEach(function(x){if(x&&x.code)map.set(x.code,x);});
+  }catch(e){}
+  const backups=await idbList();
+  backups.forEach(function(x){
+    if(!x||!x.code)return;
+    const meta=x.data&&x.data.meta?x.data.meta:{};
+    const label=(meta.groupe||meta.classe||meta.titre||'Fiche chorégraphe');
+    const old=map.get(x.code);
+    if(!old || (x.updated||0)>(old.updated||0))map.set(x.code,{code:x.code,label:String(label),updated:x.updated||0});
+  });
+  return Array.from(map.values()).sort(function(a,b){return (b.updated||0)-(a.updated||0);}).slice(0,10);
+}
+async function showSavedSheets(){
+  const host=document.getElementById('savedSheets');
+  if(!host)return;
+  const arr=await savedSheetIndex();
+  if(!arr.length){host.innerHTML='<span class="small">Aucune fiche enregistrée sur cet appareil.</span>';return;}
+  host.innerHTML=arr.map(function(x){
+    const d=x.updated?new Date(x.updated).toLocaleString('fr-FR'):'';
+    return '<button class="btn" style="width:100%;text-align:left;margin-top:7px" onclick="resumeCode(\\''+x.code+'\\')"><b>'+esc(x.label||'Fiche')+'</b><br><span class="small">Code '+x.code+(d?' — '+d:'')+'</span></button>';
+  }).join('');
+}
+async function resumeCode(c){
+  const found=await loadSheet(c);
+  if(!found){
+    const host=document.getElementById('msg');
+    if(host)host.textContent='Code introuvable sur cet appareil.';
+    return;
+  }
+  code=c;
+  data=mergeDefaults(blank(),found);
+  persistNow();
+  render();
+}
+window.addEventListener('pagehide',function(){if(data&&code){localPersist(code,cloneValue(data));idbPut(code,cloneValue(data)).catch(function(){});}});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&data&&code){localPersist(code,cloneValue(data));}});
+
+function home(){app.innerHTML=\`<h1>FICHE CHORÉGRAPHE</h1><p class="small">Sauvegarde renforcée sur cet appareil : une copie principale + une copie de secours.</p><div class="grid2"><div class="card"><h2>Nouvelle fiche</h2><p>Le code est créé immédiatement et la fiche est enregistrée automatiquement à chaque modification.</p><button class="btn primary big" onclick="newF()">Créer</button></div><div class="card"><h2>Reprendre une fiche</h2><label>Code personnel</label><input id="c" type="text" maxlength="8" style="text-transform:uppercase"><button class="btn big" style="margin-top:10px" onclick="resume()">Reprendre</button><div id="msg" class="small"></div></div></div><div class="card" style="margin-top:12px"><h2>Fiches enregistrées sur cet appareil</h2><div id="savedSheets"><span class="small">Recherche des sauvegardes…</span></div></div>\`;showSavedSheets()}
+function newF(){data=blank();code=gen();render();save(true)}
+async function resume(){let c=(document.getElementById('c').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!c){msg.textContent='Entre le code de la fiche.';return}await resumeCode(c)}
+function save(show=true){if(!code)code=gen();persistNow();const status=document.getElementById('st');if(status)status.textContent='Enregistré — code : '+code;if(show){mcode.textContent=code;modal.classList.remove('hide')}}
+function autosave(){persistNow()}
+function closeModal(){modal.classList.add('hide')}
+
 function render(){app.innerHTML=`<div class="header"><div class="row"><div><b>FICHE CHORÉGRAPHE</b><div id="st" class="status">${code?'Code : '+code:'Pas encore enregistrée'}</div></div><div><button class="btn" onclick="home()">Accueil</button> <button class="btn primary" onclick="save()">Enregistrer</button></div></div></div><div id="ed"></div>`;let m=data.meta,h=`<div class="card"><div class="meta">${fld('Groupe','meta.groupe',m.groupe)}${fld('Classe','meta.classe',m.classe)}${fld('Thème','meta.theme',m.theme)}${fld('Titre','meta.titre',m.titre)}</div></div><div class="section"><h2>Mes phrases chorégraphiques</h2><span class="small">1 case = 1 mouvement ou moment clé.</span></div>`;data.phrases.forEach((p,i)=>h+=phrase(p,i));h+=`<div class="section"><h2>Mon fil rouge</h2></div><div class="grid3"><div class="card"><h2>1. MON FIL ROUGE</h2>${area('Thème','fil.theme',data.fil.theme)}${area('Ce que je veux faire ressentir','fil.ressenti',data.fil.ressenti)}${area('Motif-signature / geste qui revient','fil.motif',data.fil.motif)}<div class="grid3">${area('Début','fil.debut',data.fil.debut)}${area('Bascule','fil.bascule',data.fil.bascule)}${area('Fin','fil.fin',data.fil.fin)}</div></div><div class="card"><h2>2. MES SYMBOLES / IMAGES</h2>${fld('Symbole / image 1','sym.s1',data.sym.s1)}${fld('Symbole / image 2','sym.s2',data.sym.s2)}${fld('Symbole / image 3','sym.s3',data.sym.s3)}<label>Comment les rendre visibles ?</label>${pills(['geste','formation','regard','niveau','espace','relation entre danseurs'],data.sym.vis,'sym.vis')}</div><div class="card"><h2>3. MES TONALITÉS</h2><label>Tonalités dominantes</label>${pills(['légère','lourde','grande','petite','rapide','lente','contrôlée','relâchée','saccadée','continue'],data.ton.dom,'ton.dom')}<label>Sphère du mouvement</label>${pills(['près','loin du corps','haut','moyen','bas','avant','arrière','droite','gauche'],data.ton.sphere,'ton.sphere')}<label>Contraste principal recherché</label>${pills(['fluide / saccadé','léger / lourd','continu / haché','direct / indirect','suspendu / relâché','explosif / retenu'],data.ton.contrastes,'ton.contrastes')}</div></div><div class="section"><h2>4. PROCÉDÉS DE COMPOSITION</h2></div><div class="procs">${PINFO.map(x=>`<label class="proc"><b><input type="checkbox" ${data.procedes.includes(x[0])?'checked':''} onchange="tog('procedes',${JSON.stringify(x[0])},this.checked)"> ${x[0]}</b><small>${x[1]}</small><small><i>Effet : ${x[2]}</i></small></label>`).join('')}</div><div class="section"><h2>5. FORMATIONS DE DANSEURS</h2></div><div class="formations">${forms('formations',data.formations)}</div><div class="section"><h2>6. VÉRIFICATION AVANT DE PRÉSENTER</h2></div><div class="card">${pills(['thème lisible','motif-signature identifiable','formations variées','espace utilisé','niveaux variés','procédés visibles','transitions nettes','début clair','fin claire','aucun temps mort','sécurité / placements maîtrisés'],data.verif,'verif')}<div class="grid2">${fld('Notre choix le plus important','choix',data.choix)}${fld('Parce que','pourquoi',data.pourquoi)}</div></div><div class="section"><h2>Télécharger la fiche</h2></div><div class="card"><p class="small">Le PDF reprend les informations, les dessins et les choix remplis dans cette fiche. Il peut ensuite être conservé ou déposé dans Pronote.</p><button class="btn ok big" onclick="downloadChorePdf()">Télécharger ma fiche chorégraphe en PDF</button><div id="pdfStatus" class="status" style="margin-top:10px"></div></div>`;ed.innerHTML=h;setTimeout(initCanvas,0)}
 function phrase(p,i){return `<details ${i===0?'open':''} ontoggle="if(this.open)setTimeout(initCanvas,0)"><summary>PHRASE ${i+1}${p.intention?' — '+esc(p.intention).slice(0,60):''}</summary><div class="inner">${fld('Idée / intention',`phrases.${i}.intention`,p.intention)}<div class="moves">${p.mouvements.map((m,j)=>`<div class="move"><div class="n">MOUVEMENT ${j+1}</div><button type="button" class="draw-preview" onclick="openDrawEditor(${i},${j})" aria-label="Ouvrir la zone de dessin du mouvement ${j+1} en plein écran"><canvas width="320" height="180" data-c="${i}-${j}"></canvas><span class="draw-preview-hint">Toucher pour dessiner en grand</span></button><textarea placeholder="Ou noter très brièvement…" oninput="setp('phrases.${i}.mouvements.${j}.note',this.value)">${esc(m.note||'')}</textarea></div>`).join('')}</div><div class="sub"><h4>TONALITÉ</h4>${pills(TON,p.tonalites,`phrases.${i}.tonalites`)}</div><div class="sub"><h4>PROCÉDÉS</h4>${pills(PROC,p.procedes,`phrases.${i}.procedes`)}</div><div class="sub"><h4>CORPS / SPHÈRE</h4>${pills(CORPS,p.corps,`phrases.${i}.corps`)}</div><div class="sub"><h4>FORMATIONS (n°)</h4><div class="formations">${forms(`phrases.${i}.formations`,p.formations)}</div></div></div></details>`}
 function fld(l,p,v){return `<div><label>${l}</label><input type="text" value="${attr(v||'')}" oninput="setp('${p}',this.value)"></div>`}function area(l,p,v){return `<div><label>${l}</label><textarea oninput="setp('${p}',this.value)">${esc(v||'')}</textarea></div>`}function pills(a,s,p){s=s||[];return `<div class="pills">${a.map(v=>`<label class="pill"><input type="checkbox" ${s.includes(v)?'checked':''} onchange="tog('${p}',${JSON.stringify(v)},this.checked)"><span>${esc(v)}</span></label>`).join('')}</div>`}function forms(p,o){o=o||{};return FORM.map(f=>{let e=o[f]||{used:false,order:''};return `<div class="form"><div class="formline"><input type="checkbox" ${e.used?'checked':''} onchange="sf('${p}',${JSON.stringify(f)},'used',this.checked)"><b>${esc(f)}</b><input type="number" min="1" value="${attr(e.order||'')}" placeholder="n°" oninput="sf('${p}',${JSON.stringify(f)},'order',this.value)"></div><div class="diag">${FD[f]}</div></div>`}).join('')}
